@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -6,13 +8,17 @@ const { getDistance } = require('./services/distance');
 const { scoreSuspect } = require('./services/aiScoring');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
 
-const OPENAQ_API_KEY = 'ffbf3fb591e7dcce1326d9d485d89b32';
+const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY;
 const scenarios = require('./data/scenarios.json');
+
+if (!OPENWEATHER_API_KEY) {
+    console.error('❌ Missing OPENWEATHER_API_KEY in .env — API requests will fall back to mock data.');
+}
 
 app.use(express.static(path.join(__dirname, '..', 'frontend', 'templates')));
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
@@ -33,13 +39,17 @@ app.get('/api/report', async (req, res) => {
 
     try {
         console.log(`📡 Attempting OPENWEATHER API for: ${scenario.station}`);
-        
+
+        if (!OPENWEATHER_API_KEY) {
+            throw new Error('OPENWEATHER_API_KEY is not set');
+        }
+
         const response = await axios.get('http://api.openweathermap.org/data/2.5/air_pollution', {
             params: { 
                 lat: scenario.lat, 
                 lon: scenario.lng, 
-                appid: 'ffbf3fb591e7dcce1326d9d485d89b32'
-            },
+                appid: OPENWEATHER_API_KEY
+            }, 
             timeout: 4000 
         });
 
