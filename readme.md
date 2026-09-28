@@ -31,7 +31,7 @@ The project utilizes a **Client-Server Architecture** optimized for low-latency 
 
 ## Tech Stack
 
-* Frontend: HTML5, Tailwind CSS, JavaScript (ES6+), Leaflet.js — served as static assets from `backend/public/`
+* Frontend: HTML5, Tailwind CSS, JavaScript (ES6+), Leaflet.js — served as static assets from `public/`
 * Backend: Next.js 16 (App Router, route handlers)
 * Data Source: OpenWeatherMap API
 * Development AI: Google Gemini (Logic Optimization & Data Structuring)
@@ -48,9 +48,8 @@ git clone https://github.com/ASP-31/AirPro
 cd AirPro
 ```
 
-2. **Install dependencies** — the Next.js app lives in `backend/`
+2. **Install dependencies** — the Next.js app lives at the repo root
 ```bash
-cd backend
 npm install
 ```
 
@@ -95,7 +94,7 @@ npm start
 | --- | --- | --- |
 | `GET` | `/api/report?zone=<station>` | Pollution report + scored suspect sites for the matched station. Falls back to `scenarios.json` data with `"source": "MOCK_DATA"` if OpenWeather is unreachable or no API key is set. |
 
-Station matching is case-insensitive and fuzzy; an unknown `zone` falls back to the first station in `backend/data/scenarios.json`.
+Station matching is case-insensitive and fuzzy; an unknown `zone` falls back to the first station in `data/scenarios.json`.
 
 ---
 
