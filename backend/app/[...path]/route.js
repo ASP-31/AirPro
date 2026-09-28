@@ -5,6 +5,10 @@ export async function GET(request) {
     const url = new URL(request.url);
     let pathname = url.pathname;
 
+    if (pathname.startsWith("/api/")) {
+        return new Response("Not Found", { status: 404 });
+    }
+
     if (pathname === "/") {
         pathname = "/dashboard.html";
     }
