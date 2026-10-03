@@ -4,121 +4,349 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Panel | Air Quality System</title>
+  <title>Moderation Queue | AirPro Admin</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <style> body { font-family: 'Inter', sans-serif; } </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    #verifyMap {
+      height: 200px;
+    }
+  </style>
 </head>
 
 <body class="bg-slate-100 p-6 md:p-10">
-  <div class="max-w-4xl mx-auto">
-    
+
+  <div class="max-w-5xl mx-auto">
+
+    <header class="flex flex-wrap justify-between items-center gap-4 mb-8">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-800 flex items-center gap-2">
+          <span class="w-3 h-3 bg-blue-500 rounded-full"></span>
+          Community Report Moderation
+        </h1>
+        <a href="index.html" class="text-xs font-bold text-slate-400 hover:text-blue-600 transition">&larr; Back to site</a>
+      </div>
+      <div class="flex items-center gap-4 text-xs font-bold">
+        <span id="driverLabel" class="text-slate-400 uppercase tracking-widest">store: --</span>
+        <button id="refreshBtn" class="px-4 py-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition">
+          Refresh
+        </button>
+        <button id="logoutBtn" class="px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-700 transition">Sign out</button>
+      </div>
+    </header>
+
+    <div class="grid grid-cols-3 gap-4 mb-10">
+      <div class="bg-white rounded-xl border border-slate-200 p-5">
+        <span class="text-[10px] font-black uppercase tracking-widest text-amber-500">Pending</span>
+        <div id="statPending" class="text-3xl font-black text-slate-800 mt-1">0</div>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 p-5">
+        <span class="text-[10px] font-black uppercase tracking-widest text-emerald-500">Live on site</span>
+        <div id="statApproved" class="text-3xl font-black text-slate-800 mt-1">0</div>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 p-5">
+        <span class="text-[10px] font-black uppercase tracking-widest text-red-500">Rejected</span>
+        <div id="statRejected" class="text-3xl font-black text-slate-800 mt-1">0</div>
+      </div>
+    </div>
+
     <section class="mb-12">
-      <h1 class="text-2xl font-extrabold mb-6 text-slate-800 flex items-center gap-2">
+      <h2 class="text-xl font-extrabold mb-6 text-slate-800 flex items-center gap-2">
         <span class="w-3 h-3 bg-amber-500 rounded-full"></span>
-        Pending Suspect Requests
-      </h1>
-      <div id="adminTable" class="space-y-4">
-        </div>
+        Pending Reports
+        <span class="text-xs font-bold text-slate-400 ml-2">verify on the map, then approve to publish</span>
+      </h2>
+      <div id="pendingList" class="space-y-4"></div>
+    </section>
+
+    <section class="mb-12">
+      <h2 class="text-xl font-extrabold mb-6 text-slate-800 flex items-center gap-2">
+        <span class="w-3 h-3 bg-emerald-500 rounded-full"></span>
+        Live on the website
+      </h2>
+      <div id="approvedList" class="space-y-3"></div>
     </section>
 
     <section>
-      <h2 class="text-2xl font-extrabold mb-6 text-slate-800 flex items-center gap-2">
-        <span class="w-3 h-3 bg-emerald-500 rounded-full"></span>
-        Live Approved Suspects
+      <h2 class="text-xl font-extrabold mb-6 text-slate-800 flex items-center gap-2">
+        <span class="w-3 h-3 bg-red-400 rounded-full"></span>
+        Rejected
       </h2>
-      <div id="approvedList" class="space-y-4">
-        </div>
+      <div id="rejectedList" class="space-y-3"></div>
     </section>
-
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // 1. Load Pending Requests
-    function loadAdminData() {
-      const pending = JSON.parse(localStorage.getItem('pendingRequests')) || [];
-      const container = document.getElementById("adminTable");
+    const $ = (id) => document.getElementById(id);
+    const token = () => sessionStorage.getItem("aqis_admin_token");
 
-      if (pending.length === 0) {
-        container.innerHTML = `<p class="text-slate-400 italic">No pending requests.</p>`;
+    const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => (
+      { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]
+    ));
+
+    function requireSession() {
+      if (!token()) {
+        window.location.href = "admin.html";
+        return false;
+      }
+      return true;
+    }
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token()}`,
+          ...(options.headers || {}),
+        },
+      });
+
+      if (res.status === 401) {
+        sessionStorage.removeItem("aqis_admin_token");
+        window.location.href = "admin.html";
+        return null;
+      }
+
+      const data = await res.json().catch(() => ({}));
+      return res.ok ? data : { error: data.error || "Request failed" };
+    }
+
+    /* ===========================
+       RENDERING
+    =========================== */
+    async function loadAll() {
+      const data = await api("/api/submissions?status=all");
+      if (!data) return;
+
+      $("driverLabel").textContent = `store: ${data.driver}`;
+      $("statPending").textContent = data.submissions.filter((s) => s.status === "pending").length;
+      $("statApproved").textContent = data.submissions.filter((s) => s.status === "approved").length;
+      $("statRejected").textContent = data.submissions.filter((s) => s.status === "rejected").length;
+
+      renderList("pendingList", data.submissions.filter((s) => s.status === "pending"), pendingCard);
+      renderList("approvedList", data.submissions.filter((s) => s.status === "approved"), approvedCard);
+      renderList("rejectedList", data.submissions.filter((s) => s.status === "rejected"), rejectedCard);
+    }
+
+    function renderList(targetId, records, template) {
+      const target = $(targetId);
+
+      if (records.length === 0) {
+        target.innerHTML = `<p class="text-slate-400 italic text-sm bg-white rounded-xl border border-slate-200 p-5">Nothing here right now.</p>`;
         return;
       }
 
-      container.innerHTML = pending.map(req => `
-        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center">
-            <div>
-                <p class="font-bold text-slate-900">${req.name} <span class="text-xs font-normal text-slate-500">(${req.type})</span></p>
-                <p class="text-xs text-slate-500">Zone: ${req.zone} | Dist: ${req.dist}km</p>
-            </div>
-            <button onclick="approveRequest(${req.id})" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition">
-                Approve & Push Live
-            </button>
-        </div>
-      `).join('');
+      target.innerHTML = records.map(template).join("");
     }
 
-    // 2. Load Approved List
-    function loadApprovedForAdmin() {
-      const approved = JSON.parse(localStorage.getItem('approvedSuspects')) || [];
-      const container = document.getElementById("approvedList");
+    function detailBlock(record) {
+      return `
+        <p class="text-xs text-slate-500 mt-1">
+          ${escapeHtml(record.type)} &middot; ${escapeHtml(record.station)} &middot; ${record.distance} km away
+          &middot; submitted ${new Date(record.createdAt).toLocaleString()}
+        </p>
+        ${record.address ? `<p class="text-sm text-slate-600 mt-1">${escapeHtml(record.address)}</p>` : ""}
+        ${record.description ? `<p class="text-sm text-slate-700 mt-2 italic">"${escapeHtml(record.description)}"</p>` : ""}
+        <p class="text-[11px] text-slate-400 mt-2">
+          Reporter: ${record.reporterName ? escapeHtml(record.reporterName) : "anonymous"}
+          ${record.reporterContact ? ` &middot; ${escapeHtml(record.reporterContact)}` : ""}
+        </p>
+        <p class="text-[11px] text-slate-400">
+          Location: ${record.lat.toFixed(5)}, ${record.lng.toFixed(5)}
+          <span class="font-bold ${record.locationAccuracy === "verified" ? "text-emerald-600" : record.locationAccuracy === "estimated" ? "text-amber-600" : "text-slate-500"}">
+            (${record.locationAccuracy})
+          </span>
+        </p>
+        ${record.duplicateOf ? `<p class="text-[11px] text-amber-600 font-bold mt-1">Possible duplicate of "${escapeHtml(record.duplicateOf.name)}"</p>` : ""}
+        ${record.duplicateCount ? `<p class="text-[11px] text-amber-600 font-bold mt-1">${record.duplicateCount} other similar report(s) for this site</p>` : ""}
+      `;
+    }
 
-      if (approved.length === 0) {
-        container.innerHTML = `<p class="text-slate-400 italic">No approved sites yet.</p>`;
+    function pendingCard(record) {
+      return `
+        <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+          <div class="flex flex-col lg:flex-row gap-5">
+            <div class="lg:w-1/2">
+              <p class="font-bold text-slate-900 text-lg">${escapeHtml(record.name)}</p>
+              ${detailBlock(record)}
+              <div id="verify-${record.id}" class="mt-3 hidden">
+                <div id="verifyMap-${record.id}" class="rounded-xl overflow-hidden border border-slate-200"></div>
+                <div class="grid grid-cols-2 gap-2 mt-2">
+                  <input id="vlat-${record.id}" type="number" step="0.00001" value="${record.lat}"
+                    class="px-3 py-2 rounded-lg border border-slate-300 text-xs font-mono" placeholder="lat">
+                  <input id="vlng-${record.id}" type="number" step="0.00001" value="${record.lng}"
+                    class="px-3 py-2 rounded-lg border border-slate-300 text-xs font-mono" placeholder="lng">
+                </div>
+                <button onclick="saveCoords('${record.id}')"
+                  class="mt-2 w-full px-4 py-2 rounded-lg bg-slate-800 text-white text-xs font-bold hover:bg-slate-700 transition">
+                  Save verified coordinates
+                </button>
+              </div>
+            </div>
+
+            <div class="lg:flex-1 flex flex-col">
+              <textarea id="note-${record.id}" rows="2" maxlength="500" placeholder="Note for the reporter (optional, shown to them if rejected)"
+                class="px-4 py-2 rounded-xl border border-slate-300 text-sm outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+              <div class="flex gap-3 mt-3">
+                <button onclick="approve('${record.id}')"
+                  class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition">
+                  Approve &amp; Publish
+                </button>
+                <button onclick="reject('${record.id}')"
+                  class="flex-1 bg-white hover:bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg text-sm font-bold transition">
+                  Reject
+                </button>
+              </div>
+              <button onclick="toggleVerifyMap('${record.id}')"
+                class="mt-2 text-xs font-bold text-slate-400 hover:text-blue-600 transition text-left">
+                Verify location on map &rarr;
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function approvedCard(record) {
+      return `
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-wrap justify-between items-center gap-3 border-l-4 border-l-emerald-500">
+          <div>
+            <span class="font-bold text-slate-900">${escapeHtml(record.name)}</span>
+            ${detailBlock(record)}
+            ${record.adminNote ? `<p class="text-[11px] text-slate-400 italic mt-1">Note: ${escapeHtml(record.adminNote)}</p>` : ""}
+          </div>
+          <div class="flex gap-2">
+            <button onclick="reject('${record.id}')"
+              class="text-amber-600 hover:bg-amber-50 px-4 py-2 rounded-lg text-sm font-bold transition border border-transparent hover:border-amber-200">
+              Unpublish
+            </button>
+            <button onclick="destroy('${record.id}')"
+              class="text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-bold transition border border-transparent hover:border-red-200">
+              Delete
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function rejectedCard(record) {
+      return `
+        <div class="bg-white p-5 rounded-xl border border-slate-200 flex flex-wrap justify-between items-center gap-3 border-l-4 border-l-red-300">
+          <div>
+            <span class="font-bold text-slate-700">${escapeHtml(record.name)}</span>
+            ${detailBlock(record)}
+            ${record.adminNote ? `<p class="text-[11px] text-slate-400 italic mt-1">Reason: ${escapeHtml(record.adminNote)}</p>` : ""}
+          </div>
+          <div class="flex gap-2">
+            <button onclick="reopen('${record.id}')"
+              class="text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-lg text-sm font-bold transition border border-transparent hover:border-blue-200">
+              Reopen
+            </button>
+            <button onclick="destroy('${record.id}')"
+              class="text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-bold transition border border-transparent hover:border-red-200">
+              Delete
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    /* ===========================
+       ACTIONS
+    =========================== */
+    async function review(id, status) {
+      const note = $(`note-${id}`)?.value ?? "";
+      const result = await api(`/api/submissions/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status, adminNote: note }),
+      });
+
+      if (result?.error) {
+        alert(result.error);
+        return;
+      }
+      await loadAll();
+    }
+
+    window.approve = (id) => review(id, "approved");
+    window.reject = (id) => review(id, "rejected");
+    window.reopen = (id) => review(id, "pending");
+
+    window.destroy = async (id) => {
+      if (!confirm("Permanently delete this report?")) return;
+      const result = await api(`/api/submissions/${id}`, { method: "DELETE" });
+      if (result?.error) {
+        alert(result.error);
+        return;
+      }
+      await loadAll();
+    };
+
+    window.saveCoords = async (id) => {
+      const lat = $(`vlat-${id}`).value;
+      const lng = $(`vlng-${id}`).value;
+      const result = await api(`/api/submissions/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ verifiedLat: lat, verifiedLng: lng }),
+      });
+
+      if (result?.error) {
+        alert(result.error);
+        return;
+      }
+      await loadAll();
+    };
+
+    const verifyMaps = new Map();
+
+    window.toggleVerifyMap = (id) => {
+      const holder = $(`verify-${id}`);
+
+      if (verifyMaps.has(id)) {
+        holder.classList.add("hidden");
+        verifyMaps.get(id).remove();
+        verifyMaps.delete(id);
         return;
       }
 
-      container.innerHTML = approved.map(item => `
-        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-center border-l-4 border-l-emerald-500">
-            <div>
-                <span class="font-bold text-slate-900">${item.name}</span>
-                <p class="text-xs text-slate-500">${item.zone} | ${item.type} | ${item.dist}km</p>
-            </div>
-            <button onclick="deleteApproved(${item.id})" class="text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-bold transition border border-transparent hover:border-red-200">
-                Remove Site
-            </button>
-        </div>
-      `).join('');
-    }
-
-    // 3. Logic to Approve
-    window.approveRequest = (id) => {
-      let pending = JSON.parse(localStorage.getItem('pendingRequests')) || [];
-      let approved = JSON.parse(localStorage.getItem('approvedSuspects')) || [];
-
-      const itemToApprove = pending.find(r => r.id === id);
-      if (itemToApprove) {
-        approved.push(itemToApprove);
-        pending = pending.filter(r => r.id !== id);
-
-        localStorage.setItem('approvedSuspects', JSON.stringify(approved));
-        localStorage.setItem('pendingRequests', JSON.stringify(pending));
-
-        alert("Site approved!");
-        refreshAll();
+      const lat = parseFloat($(`vlat-${id}`).value);
+      const lng = parseFloat($(`vlng-${id}`).value);
+      if (Number.isNaN(lat) || Number.isNaN(lng)) {
+        alert("Coordinates are missing on this record.");
+        return;
       }
+
+      const map = L.map(`verifyMap-${id}`, { attributionControl: false }).setView([lat, lng], 15);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+      const marker = L.marker([lat, lng]).addTo(map);
+      map.on("click", (event) => {
+        marker.setLatLng(event.latlng);
+        $(`vlat-${id}`).value = event.latlng.lat.toFixed(5);
+        $(`vlng-${id}`).value = event.latlng.lng.toFixed(5);
+      });
+
+      verifyMaps.set(id, map);
+      holder.classList.remove("hidden");
+      setTimeout(() => map.invalidateSize(), 50);
     };
 
-    // 4. Logic to Delete Approved
-    window.deleteApproved = (id) => {
-      if (!confirm("Are you sure you want to remove this suspect from the live list?")) return;
-      
-      let approved = JSON.parse(localStorage.getItem('approvedSuspects')) || [];
-      approved = approved.filter(item => item.id !== id);
+    $("refreshBtn").addEventListener("click", loadAll);
+    $("logoutBtn").addEventListener("click", () => {
+      sessionStorage.removeItem("aqis_admin_token");
+      window.location.href = "admin.html";
+    });
 
-      localStorage.setItem('approvedSuspects', JSON.stringify(approved));
-      alert("Suspect removed.");
-      refreshAll();
-    };
-
-    // Helper to reload both lists
-    function refreshAll() {
-      loadAdminData();
-      loadApprovedForAdmin();
-    }
-
-    // Run on Page Load
-    document.addEventListener("DOMContentLoaded", refreshAll);
-
+    document.addEventListener("DOMContentLoaded", () => {
+      if (requireSession()) loadAll();
+    });
   </script>
 </body>
+
 </html>

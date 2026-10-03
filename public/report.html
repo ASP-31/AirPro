@@ -2,10 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Incident Report | Air Quality System</title>
 
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="services/nav.js"></script>
 
   <!-- Font -->
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -15,9 +17,11 @@
   </style>
 </head>
 
-<body class="bg-slate-100">
+<body class="bg-slate-100 min-h-screen flex flex-col">
 
-<main class="max-w-4xl mx-auto bg-white my-10 p-10 rounded-xl shadow-md">
+  <div data-aqis-header></div>
+
+  <main class="max-w-4xl w-full mx-auto px-6 my-10 bg-white p-10 rounded-xl shadow-md flex-grow">
 
   <!-- REPORT HEADER -->
   <section class="border-b pb-6 mb-8">
@@ -117,6 +121,8 @@
   </footer>
 
 </main>
+
+<div data-aqis-footer></div>
 
 <script>
 document.addEventListener("DOMContentLoaded", async () => {

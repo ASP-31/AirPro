@@ -3,7 +3,7 @@ import path from "path";
 
 export async function GET(request) {
     const { pathname } = new URL(request.url);
-    const target = pathname === "/" ? "/dashboard.html" : pathname;
+    const target = pathname === "/" ? "/index.html" : pathname;
     const filePath = path.join(process.cwd(), "public", target);
 
     if (!filePath.startsWith(path.join(process.cwd(), "public")) || !fs.existsSync(filePath)) {

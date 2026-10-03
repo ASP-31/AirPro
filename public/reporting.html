@@ -2,173 +2,419 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AirPro | Incident Reporting</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AirPro | Report a Suspect Site</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="services/nav.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
 
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-    </style>
+    #pinMap {
+      height: 320px;
+    }
+  </style>
 </head>
 
 <body class="bg-slate-50 min-h-screen">
-    <header class="sticky top-0 z-50 bg-white shadow-md">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-3 font-bold text-xl tracking-tight">
-                <div
-                    class="relative flex items-center justify-center w-10 h-10 bg-gradient-to-br from-blue-500 to-emerald-500 rounded-xl shadow-lg">
-                    <svg viewBox="0 0 24 24" class="w-6 h-6 text-white" fill="none" stroke="currentColor"
-                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M2 12h10" />
-                        <path d="M9 18h3a3 3 0 0 0 3-3V9a3 3 0 0 1 3-3h3" />
-                        <path d="M12 12a3 3 0 0 1 3 3v3" />
-                    </svg>
-                </div>
-                <span class="bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700">Air Quality
-                    <span class="text-blue-600">System</span></span>
-            </div>
 
-            <nav class="flex gap-8 text-slate-600 font-medium">
-                <a href="dashboard.html" class="hover:text-blue-600 transition">Dashboard</a>
-                <a href="map.html" class="hover:text-blue-600 transition">Map</a>
-            </nav>
+  <div data-aqis-header></div>
+
+  <main class="max-w-6xl mx-auto px-6 py-10">
+
+    <section class="bg-gradient-to-br from-blue-600 to-emerald-600 text-white rounded-2xl p-8 mb-8 shadow-lg">
+      <h1 class="text-3xl font-extrabold mb-2">Report a potential pollution source</h1>
+      <p class="text-blue-50 max-w-3xl">
+        Spotted a construction site, brick kiln, quarry, waste dump or any other activity that could be pushing the AQI
+        up near a monitoring station? Submit it here. An environmental administrator verifies every report before it
+        is published on the suspect map and dashboard.
+      </p>
+    </section>
+
+    <form id="reportForm" class="grid lg:grid-cols-3 gap-6 items-start">
+
+      <section class="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-8 space-y-6">
+
+        <div class="grid md:grid-cols-2 gap-6">
+          <div>
+            <label for="stationSelector"
+              class="text-xs text-slate-500 font-medium uppercase tracking-wider">Monitoring Zone</label>
+            <select id="stationSelector" required
+              class="block w-full mt-1 px-4 py-3 rounded-xl border border-slate-300 bg-white font-semibold outline-none focus:ring-2 focus:ring-blue-500 transition"></select>
+            <p class="text-[11px] text-slate-400 mt-1">The station your observation relates to.</p>
+          </div>
+
+          <div>
+            <label for="siteType"
+              class="text-xs text-slate-500 font-medium uppercase tracking-wider">Type of Site</label>
+            <select id="siteType" required
+              class="block w-full mt-1 px-4 py-3 rounded-xl border border-slate-300 bg-white font-semibold outline-none focus:ring-2 focus:ring-blue-500 transition">
+              <option value="Construction">Construction</option>
+              <option value="Roadwork">Roadwork / Paving</option>
+              <option value="Industrial">Industrial Unit</option>
+              <option value="Infrastructure">Infrastructure Project</option>
+              <option value="Brick Kiln">Brick Kiln</option>
+              <option value="Quarry">Quarry / Mining</option>
+              <option value="Landfill">Landfill / Dump</option>
+              <option value="Waste Burning">Open Waste Burning</option>
+              <option value="Transport">Transport / Depot</option>
+              <option value="Commercial">Commercial</option>
+              <option value="Residential">Residential</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
         </div>
-    </header>
 
-    <main class="max-w-5xl mx-auto px-6 py-10">
-        <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-8">
-            <h2 class="text-2xl font-bold mb-6 text-slate-800">New Incident Report</h2>
+        <div>
+          <label for="siteName" class="text-xs text-slate-500 font-medium uppercase tracking-wider">Site Name /
+            Landmark</label>
+          <input type="text" id="siteName" required minlength="3" maxlength="120"
+            placeholder="e.g. Skyline apartments block C construction site"
+            class="block w-full mt-1 px-4 py-3 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500 transition">
+        </div>
 
-            <div class="grid md:grid-cols-2 gap-6 mb-8">
-                <div>
-                    <label class="text-sm text-slate-500 font-medium uppercase tracking-wider">Target City</label>
-                    <select id="citySelector"
-                        class="block w-full mt-1 px-4 py-3 rounded-xl border border-slate-300 bg-white font-semibold outline-none focus:ring-2 focus:ring-blue-500 transition">
-                        <option value="Ernakulam">Ernakulam</option>
-                        <option value="Delhi">Delhi</option>
-                        <option value="Mumbai">Mumbai</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-sm text-slate-500 font-medium uppercase tracking-wider">Monitoring Zone</label>
-                    <select id="zoneSelector"
-                        class="block w-full mt-1 px-4 py-3 rounded-xl border border-slate-300 bg-white font-semibold outline-none focus:ring-2 focus:ring-blue-500 transition"></select>
-                </div>
-            </div>
+        <div>
+          <label for="siteAddress" class="text-xs text-slate-500 font-medium uppercase tracking-wider">Address /
+            Landmark Details</label>
+          <input type="text" id="siteAddress" maxlength="200" placeholder="e.g. Near Kunnumpuram bridge"
+            class="block w-full mt-1 px-4 py-3 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500 transition">
+        </div>
 
-            <div class="border-t border-slate-100 pt-8">
-                <h3 class="text-lg font-bold mb-4 flex items-center gap-2 text-blue-600">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd"
-                            d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
-                            clip-rule="evenodd" />
-                    </svg>
-                    Manually Add Suspect Site
-                </h3>
-                <div class="grid md:grid-cols-3 gap-4 mb-4">
-                    <input type="text" id="suspectName" placeholder="Site Name (e.g., FACT Plant)"
-                        class="px-4 py-3 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500 transition">
-                    <select id="suspectType"
-                        class="px-4 py-3 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500 transition">
-                        <option value="Industrial">Industrial</option>
-                        <option value="Infrastructure">Infrastructure</option>
-                        <option value="Roadwork">Roadwork</option>
-                        <option value="Residential">Residential</option>
-                        <option value="Commercial">Commercial</option>
-                    </select>
-                    <input type="number" id="suspectDistance" placeholder="Distance (km)"
-                        class="px-4 py-3 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500 transition">
-                </div>
-                <button id="addSuspectBtn"
-                    class="w-full md:w-auto bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-600 transition shadow-lg shadow-slate-200">
-                    Add to Investigation Queue
-                </button>
-            </div>
-        </section>
+        <div>
+          <label for="siteDescription" class="text-xs text-slate-500 font-medium uppercase tracking-wider">What did
+            you observe?</label>
+          <textarea id="siteDescription" rows="3" maxlength="1000"
+            placeholder="e.g. Sand levelling since 6 AM with heavy dust, no water spraying, truck queue at the gate."
+            class="block w-full mt-1 px-4 py-3 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500 transition"></textarea>
+        </div>
 
-        <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-bold text-slate-800">Investigation Queue</h3>
-                <span id="queueCount" class="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-xs font-black">0
-                    SITES</span>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead class="text-slate-400 text-[10px] uppercase font-black border-b border-slate-100">
-                        <tr>
-                            <th class="pb-4 px-2 tracking-widest">Site Name</th>
-                            <th class="pb-4 px-2 tracking-widest">Project Type</th>
-                            <th class="pb-4 px-2 text-right tracking-widest">Proximity</th>
-                        </tr>
-                    </thead>
-                    <tbody id="suspectQueue" class="divide-y divide-slate-50">
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    </main>
+        <div class="grid md:grid-cols-2 gap-6">
+          <div>
+            <label for="reporterName" class="text-xs text-slate-500 font-medium uppercase tracking-wider">Your Name
+              (optional)</label>
+            <input type="text" id="reporterName" maxlength="80" placeholder="Anonymous"
+              class="block w-full mt-1 px-4 py-3 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500 transition">
+          </div>
+          <div>
+            <label for="reporterContact" class="text-xs text-slate-500 font-medium uppercase tracking-wider">Contact
+              (optional)</label>
+            <input type="text" id="reporterContact" maxlength="120" placeholder="Phone or email for follow-up"
+              class="block w-full mt-1 px-4 py-3 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500 transition">
+          </div>
+        </div>
 
-    <script>
-        // 1. DATA MAPPING
-        const cityStations = {
-            "Ernakulam": ["Vyttila Mobility Hub", "Kaloor Junction", "Kakkanad SmartCity", "Edappally Toll", "MG Road (Maharajas)", "Eloor Industrial Area", "Aluva Manappuram", "Kalamassery Startup Village", "Fort Kochi Pier", "Tripunithura Statue"],
-            "Delhi": ["Anand Vihar ISBT", "R.K. Puram", "Punjabi Bagh", "ITO Junction"],
-            "Mumbai": ["Bandra Kurla Complex", "Colaba", "Worli", "Borivali"]
-        };
+        <input type="text" id="website" class="hidden" tabindex="-1" autocomplete="off">
+      </section>
 
-        let queueItemCount = 0;
+      <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+        <h3 class="font-bold text-slate-800 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-red-500"></span>
+          Pin the location
+        </h3>
+        <p class="text-xs text-slate-500">Search for the place or click the map to drop a pin.</p>
 
-        // 2. DEPENDENT DROPDOWN LOGIC
-        function populateZones() {
-            const city = document.getElementById("citySelector").value;
-            const zoneSelect = document.getElementById("zoneSelector");
+        <div id="pinMap" class="rounded-xl overflow-hidden border border-slate-200"></div>
 
-            zoneSelect.innerHTML = ""; // Clear existing
-            cityStations[city].forEach(station => {
-                const opt = document.createElement("option");
-                opt.value = station;
-                opt.textContent = station;
-                zoneSelect.appendChild(opt);
-            });
+        <div class="grid grid-cols-2 gap-3 text-xs">
+          <div class="bg-slate-50 rounded-lg p-3">
+            <span class="block text-slate-400 uppercase font-bold">Latitude</span>
+            <span id="pinLat" class="font-mono text-slate-700">--</span>
+          </div>
+          <div class="bg-slate-50 rounded-lg p-3">
+            <span class="block text-slate-400 uppercase font-bold">Longitude</span>
+            <span id="pinLng" class="font-mono text-slate-700">--</span>
+          </div>
+        </div>
+
+        <div class="border-t border-slate-100 pt-4">
+          <label for="distanceFallback" class="text-xs text-slate-500 font-medium uppercase tracking-wider">No pin?
+            Give the distance instead</label>
+          <div class="flex gap-2 mt-1">
+            <input type="number" id="distanceFallback" min="0.1" max="60" step="0.1" placeholder="km from station"
+              class="flex-1 px-4 py-2 rounded-xl border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500 transition text-sm">
+            <button type="button" id="clearPinBtn"
+              class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 text-sm font-bold hover:bg-slate-200 transition">Clear</button>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-2">
+            A pin gives an exact map marker. Without one, the admin fixes the coordinates during verification.
+          </p>
+        </div>
+
+        <div id="formMessage" class="hidden rounded-xl px-4 py-3 text-sm font-semibold"></div>
+
+        <button type="submit" id="submitBtn"
+          class="w-full bg-slate-900 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-600 transition shadow-lg shadow-slate-200">
+          Submit for Admin Review
+        </button>
+        <p class="text-[11px] text-slate-400 text-center">Reports are published only after admin approval.</p>
+      </section>
+    </form>
+
+    <section class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mt-8">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-bold text-slate-800">Reports submitted from this device</h3>
+        <button type="button" id="refreshMineBtn" class="text-xs font-bold text-blue-600 hover:text-blue-700 transition">
+          Refresh status
+        </button>
+      </div>
+      <div id="myReports" class="space-y-3"></div>
+    </section>
+
+    <p class="text-center text-xs text-slate-400 mt-10">
+      System status: <span id="apiStatus" class="font-bold">checking...</span>
+    </p>
+  </main>
+
+  <div data-aqis-footer></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
+  <script>
+    const MY_REPORTS_KEY = "aqis_my_reports";
+    const STATUS_STYLE = {
+      pending: "bg-amber-100 text-amber-700",
+      approved: "bg-emerald-100 text-emerald-700",
+      rejected: "bg-red-100 text-red-600",
+    };
+
+    let stations = [];
+    let pin = null;
+    let marker = null;
+    let pinMap = null;
+
+    const $ = (id) => document.getElementById(id);
+
+    const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => (
+      { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]
+    ));
+
+    /* ===========================
+       MAP + STATION SETUP
+    =========================== */
+    async function bootstrap() {
+      try {
+        const res = await fetch("/api/report?stations=1");
+        stations = (await res.json()).stations || [];
+        $("apiStatus").textContent = "online";
+        $("apiStatus").className = "font-bold text-emerald-600";
+      } catch (err) {
+        $("apiStatus").textContent = "offline - start the backend";
+        $("apiStatus").className = "font-bold text-red-600";
+        return;
+      }
+
+      $("stationSelector").innerHTML = stations
+        .map((s) => `<option value="${escapeHtml(s.station)}">${escapeHtml(s.station)}</option>`)
+        .join("");
+
+      pinMap = L.map("pinMap").setView([9.9670, 76.3200], 12);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap",
+      }).addTo(pinMap);
+
+      try {
+        pinMap.addControl(L.Control.geocoder({
+          geocoder: L.Geocoder.nominatim(),
+          placeholder: "Search a place...",
+          resultsLimit: 5,
+        }).on("markgeocode", (event) => setPin(event.geocode.center.lat, event.geocode.center.lng)));
+      } catch (err) {
+        console.warn("Place search unavailable:", err);
+      }
+
+      pinMap.on("click", (event) => setPin(event.latlng.lat, event.latlng.lng));
+      focusStation();
+      renderMyReports();
+    }
+
+    function selectedStation() {
+      return stations.find((s) => s.station === $("stationSelector").value);
+    }
+
+    function focusStation() {
+      const station = selectedStation();
+      if (station && pinMap) pinMap.setView([station.lat, station.lng], 12);
+      setPin(null);
+    }
+
+    function setPin(lat, lng) {
+      pin = lat === null ? null : { lat, lng };
+      $("pinLat").textContent = pin ? pin.lat.toFixed(5) : "--";
+      $("pinLng").textContent = pin ? pin.lng.toFixed(5) : "--";
+
+      if (marker) {
+        pinMap.removeLayer(marker);
+        marker = null;
+      }
+      if (pin) marker = L.marker([pin.lat, pin.lng]).addTo(pinMap);
+    }
+
+    /* ===========================
+       SUBMIT
+    =========================== */
+    $("reportForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      clearErrors();
+
+      const payload = {
+        station: $("stationSelector").value,
+        name: $("siteName").value.trim(),
+        type: $("siteType").value,
+        address: $("siteAddress").value.trim(),
+        description: $("siteDescription").value.trim(),
+        reporterName: $("reporterName").value.trim(),
+        reporterContact: $("reporterContact").value.trim(),
+        lat: pin ? pin.lat : "",
+        lng: pin ? pin.lng : "",
+        distanceKm: $("distanceFallback").value,
+        website: $("website").value,
+      };
+
+      const button = $("submitBtn");
+      button.disabled = true;
+      button.textContent = "Submitting...";
+
+      try {
+        const res = await fetch("/api/submissions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          if (data.fields) showFieldErrors(data.fields);
+          showMessage(data.error || "Submission failed.", false);
+          return;
         }
 
-        // 3. MANUAL ENTRY HANDLER
-        document.getElementById("addSuspectBtn").onclick = () => {
-            const name = document.getElementById("suspectName").value.trim();
-            const type = document.getElementById("suspectType").value;
-            const dist = document.getElementById("suspectDistance").value;
-            const city = document.getElementById("citySelector").value;
-            const zone = document.getElementById("zoneSelector").value;
+        if (data.id) rememberReport(data.id, data.receipt);
+        $("reportForm").reset();
+        setPin(null);
 
-            if (!name || !dist) return alert("Please fill all details.");
+        showMessage(
+          data.duplicateOf
+            ? `Saved. Heads up: "${data.duplicateOf.name}" is already on record for this zone, so the admin will likely merge them.`
+            : "Report submitted. It is now waiting for admin approval.",
+          true
+        );
+        renderMyReports();
+      } catch (err) {
+        showMessage("Could not reach the server. Please try again.", false);
+      } finally {
+        button.disabled = false;
+        button.textContent = "Submit for Admin Review";
+      }
+    });
 
-            const newRequest = {
-                id: Date.now(), // Unique ID for the admin to find it
-                name, type, dist, city, zone,
-                status: "Pending",
-                timestamp: new Date().toLocaleString()
-            };
+    /* ===========================
+       MY SUBMISSIONS
+    =========================== */
+    function myReports() {
+      try {
+        return JSON.parse(localStorage.getItem(MY_REPORTS_KEY)) || [];
+      } catch {
+        return [];
+      }
+    }
 
-            // Save to pending list
-            let pending = JSON.parse(localStorage.getItem('pendingRequests')) || [];
-            pending.push(newRequest);
-            localStorage.setItem('pendingRequests', JSON.stringify(pending));
+    function rememberReport(id, receipt) {
+      if (!id) return;
+      const list = myReports().filter((item) => item.id !== id);
+      list.unshift({ id, receipt });
+      localStorage.setItem(MY_REPORTS_KEY, JSON.stringify(list.slice(0, 25)));
+    }
 
-            alert("Request sent to Admin for approval.");
-            location.reload(); // Refresh to clear
-        };
-        // 4. INITIALIZATION
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById("citySelector").addEventListener('change', populateZones);
-            populateZones(); // Initial populate on load
-        });
-    </script>
+    async function renderMyReports() {
+      const list = myReports();
+      const container = $("myReports");
+
+      if (list.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 italic text-sm">You have not submitted any reports yet.</p>`;
+        return;
+      }
+
+      const results = await Promise.all(list.map(async (item) => {
+        const res = await fetch(
+          `/api/submissions?id=${encodeURIComponent(item.id)}&receipt=${encodeURIComponent(item.receipt || "")}`
+        );
+        return res.ok ? (await res.json()).submission : null;
+      }));
+      const records = results.filter(Boolean);
+
+      if (records.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 italic text-sm">Submission records not found on the server.</p>`;
+        return;
+      }
+
+      container.innerHTML = records.map((record) => `
+        <div class="flex flex-wrap justify-between items-center gap-3 bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
+          <div>
+            <p class="font-bold text-slate-900">${escapeHtml(record.name)}</p>
+            <p class="text-xs text-slate-500">${escapeHtml(record.type)} &middot; ${escapeHtml(record.station)}
+               &middot; ${new Date(record.createdAt).toLocaleString()}</p>
+            ${record.adminNote ? `<p class="text-xs text-slate-600 mt-1 italic">Admin note: ${escapeHtml(record.adminNote)}</p>` : ""}
+          </div>
+          <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase ${STATUS_STYLE[record.status]}">
+            ${record.status === "approved" ? "Live on site" : record.status}
+          </span>
+        </div>
+      `).join("");
+    }
+
+    /* ===========================
+       UI HELPERS
+    =========================== */
+    function showMessage(text, ok) {
+      const box = $("formMessage");
+      box.textContent = text;
+      box.className = `rounded-xl px-4 py-3 text-sm font-semibold ${ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`;
+    }
+
+    function clearErrors() {
+      document.querySelectorAll(".field-error").forEach((el) => el.classList.add("hidden"));
+      ["siteName", "siteType", "stationSelector", "distanceFallback"].forEach((id) =>
+        $(id).classList.remove("ring-2", "ring-red-400", "border-red-400")
+      );
+    }
+
+    function showFieldErrors(fields) {
+      const map = {
+        name: "siteName",
+        type: "siteType",
+        station: "stationSelector",
+        distanceKm: "distanceFallback",
+      };
+
+      Object.entries(fields).forEach(([key, message]) => {
+        const target = $(map[key]);
+        if (!target) return;
+
+        target.classList.add("ring-2", "ring-red-400", "border-red-400");
+        let holder = target.parentElement.querySelector(".field-error");
+        if (!holder) {
+          holder = document.createElement("p");
+          holder.className = "field-error text-xs text-red-600 mt-1 hidden";
+          target.parentElement.appendChild(holder);
+        }
+        holder.textContent = message;
+        holder.classList.remove("hidden");
+      });
+    }
+
+    $("stationSelector").addEventListener("change", focusStation);
+    $("clearPinBtn").addEventListener("click", () => setPin(null));
+    $("refreshMineBtn").addEventListener("click", renderMyReports);
+
+    document.addEventListener("DOMContentLoaded", bootstrap);
+  </script>
 </body>
 
 </html>
